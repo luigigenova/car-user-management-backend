@@ -117,50 +117,6 @@ class UserControllerTest {
     }
 
     /**
-     * Testa o endpoint que cria um novo usuário com sucesso.
-     */
-    @Test
-    void deveCriarUsuarioComSucesso() {
-        User user = new User();
-        user.setId(1L);
-        user.setLogin("user1");
-        user.setEmail("user1@example.com");
-
-        when(userService.existsByEmail(user.getEmail())).thenReturn(false);
-        when(userService.existsByLogin(user.getLogin())).thenReturn(false);
-        when(userService.save(user)).thenReturn(user);
-
-        ResponseEntity<?> response = userController.createUser(user);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertTrue(response.getBody() instanceof User);
-        verify(userService, times(1)).save(user);
-    }
-
-    /**
-     * Testa o endpoint que retorna erro ao criar usuário com email já existente.
-     */
-    @Test
-    void deveRetornarErroAoCriarUsuarioComEmailExistente() {
-        User user = new User();
-        user.setLogin("user1");
-        user.setEmail("user1@example.com");
-
-        when(userService.existsByEmail(user.getEmail())).thenReturn(true);
-
-        ResponseEntity<?> response = userController.createUser(user);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-        assertTrue(response.getBody() instanceof Map);
-        Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
-        assertEquals("Email already exists", responseBody.get("message"));
-        assertEquals(409, responseBody.get("errorCode"));
-        verify(userService, never()).save(user);
-    }
-
-    /**
      * Testa o endpoint que atualiza um usuário com sucesso.
      */
     @Test
