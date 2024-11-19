@@ -1,7 +1,9 @@
 package com.desafio.service;
 
+import com.desafio.dto.UserResponseDTO;
 import com.desafio.entity.User;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -63,4 +65,10 @@ public interface IUserService {
      * @return true se o login já estiver cadastrado, false caso contrário
      */
     boolean existsByLogin(String login);
+
+    List<UserResponseDTO> findAllUsersWithCars();
+
+    Map<String, Integer> getStatistics();
+
+    User findByUsername(String username);
 }

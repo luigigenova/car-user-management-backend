@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 
 @SpringBootApplication
-@EntityScan(basePackages = "com.desafio.entity")
+@EntityScan(basePackages = "com.desafio")
 public class CarUserManagementBackendApplication {
 
 	public static void main(String[] args) {

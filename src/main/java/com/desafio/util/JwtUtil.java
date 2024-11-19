@@ -1,8 +1,10 @@
-package com.desafio.security;
+package com.desafio.util;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +22,7 @@ public class JwtUtil {
 
     /**
      * Extrai o username do token JWT.
-     * 
+     *
      * @param token O token JWT.
      * @return O username contido no token.
      */
@@ -30,8 +32,8 @@ public class JwtUtil {
 
     /**
      * Extrai uma informação específica (claim) do token JWT.
-     * 
-     * @param token O token JWT.
+     *
+     * @param token          O token JWT.
      * @param claimsResolver Função para resolver a claim.
      * @return A informação extraída.
      */
@@ -41,12 +43,17 @@ public class JwtUtil {
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
+        // Ajuste para usar a mesma chave que foi usada na assinatura
+        return Jwts.parserBuilder()
+                .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes())) // Use o mesmo método de conversão para consistência
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     /**
      * Gera um token JWT para o usuário.
-     * 
+     *
      * @param username O username do usuário.
      * @return O token JWT gerado.
      */
@@ -55,20 +62,26 @@ public class JwtUtil {
                 .setSubject(username)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 horas
-                .signWith(SignatureAlgorithm.HS256, secret)
+                .signWith(Keys.hmacShaKeyFor(secret.getBytes()), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     /**
      * Valida o token JWT.
-     * 
-     * @param token O token JWT.
+     *
+     * @param token    O token JWT.
      * @param username O username do usuário.
      * @return true se o token for válido, false caso contrário.
      */
     public Boolean validateToken(String token, String username) {
-        final String extractedUsername = extractUsername(token);
-        return (extractedUsername.equals(username) && !isTokenExpired(token));
+        try {
+            final String extractedUsername = extractUsername(token);
+            return (extractedUsername.equals(username) && !isTokenExpired(token));
+        } catch (Exception e) {
+            // Log adicional para entender a causa do erro
+            System.err.println("Erro durante a validação do token: " + e.getMessage());
+            return false;
+        }
     }
 
     private Boolean isTokenExpired(String token) {
@@ -77,7 +90,7 @@ public class JwtUtil {
 
     /**
      * Extrai a data de expiração do token JWT.
-     * 
+     *
      * @param token O token JWT.
      * @return A data de expiração.
      */

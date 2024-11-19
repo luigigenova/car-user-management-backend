@@ -1,37 +1,58 @@
 package com.desafio.entity;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import lombok.AllArgsConstructor;
 
-@Entity
+/**
+ * Classe que representa a entidade Carro no sistema.
+ */
 @Data
-@NoArgsConstructor
+@Entity
 @AllArgsConstructor
+@NoArgsConstructor
+@Table(name = "cars", uniqueConstraints = @UniqueConstraint(columnNames = "license_plate"))
 public class Car {
 
+    /**
+     * Identificador único do carro.
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String licensePlate;
-
-    @Column(name = "car_year")
-    private int year;
-    
+    /**
+     * Modelo do carro.
+     */
+    @NotNull(message = "O modelo é obrigatório")
     private String model;
-    
+
+    /**
+     * Ano de fabricação do carro.
+     */
+    @NotNull(message = "O ano é obrigatório")
+    @Column(name = "`year`")
+    private Integer year;
+
+    /**
+     * Cor do carro.
+     */
+    @NotNull(message = "A cor é obrigatória")
     private String color;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
+    /**
+     * Placa do carro (deve ser única).
+     */
+    @Column(name = "license_plate", nullable = false, unique = true)
+    @NotNull(message = "A placa é obrigatória")
+    private String licensePlate;
+
+    /**
+     * Usuário proprietário do carro.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 }

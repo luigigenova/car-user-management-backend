@@ -1,7 +1,12 @@
 package com.desafio.repository;
 
 import com.desafio.entity.User;
+
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 /**
  * Repositório de acesso a dados para a entidade User.
@@ -9,13 +14,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
  */
 public interface IUserRepository extends JpaRepository<User, Long> {
 
-    /**
+     /**
      * Busca um usuário pelo login.
-     * 
-     * @param login o login do usuário
-     * @return o usuário com o login fornecido, ou null se não encontrado
+     *
+     * @param login Login do usuário.
+     * @return Um Optional contendo o usuário, caso encontrado.
      */
-    User findByLogin(String login);
+    Optional<User> findByLogin(String login);
 
     /**
      * Verifica se existe um usuário com o email fornecido.
@@ -32,4 +37,12 @@ public interface IUserRepository extends JpaRepository<User, Long> {
      * @return true se o login já estiver cadastrado, false caso contrário
      */
     boolean existsByLogin(String login);
+
+    /**
+     * Busca todos os usuários com os carros já carregados.
+     * 
+     * @return Lista de usuários.
+     */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.cars")
+    List<User> findAllWithCars();
 }
