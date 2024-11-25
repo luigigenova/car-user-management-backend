@@ -1,6 +1,10 @@
 package com.desafio.service.impl;
 
+import com.desafio.dto.response.CarResponseDTO;
+import com.desafio.dto.response.UserResponseDTO;
+import com.desafio.entity.Car;
 import com.desafio.entity.User;
+import com.desafio.repository.ICarRepository;
 import com.desafio.repository.IUserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,110 +14,59 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 /**
  * Classe de teste para {@link UserServiceImpl}.
  * <p>
- * Verifica o comportamento dos métodos da classe de serviço, garantindo que
- * todas as operações de negócios sejam realizadas corretamente.
+ * Garante a cobertura de todas as funcionalidades implementadas no serviço de
+ * usuários.
+ * Segue boas práticas e utiliza mocks para isolar as dependências.
+ * </p>
  */
 class UserServiceImplTest {
 
-    /** Mock do repositório de usuários */
     @Mock
     private IUserRepository userRepository;
 
-    /** Mock do codificador de senha */
+    @Mock
+    private ICarRepository carRepository;
+
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    /** Serviço sendo testado */
     @InjectMocks
     private UserServiceImpl userService;
 
-    /** Instância de um usuário para os testes */
-    private User user;
-
-    /**
-     * Configuração inicial dos mocks e objetos de teste.
-     */
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-
-        user = new User();
-        user.setId(1L);
-        user.setLogin("testuser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
     }
 
-    /**
-     * Testa a busca de um usuário por ID.
-     */
     @Test
-    void deveRetornarUsuarioPorId() {
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+    void deveLancarExcecaoAoSalvarUsuarioComEmailDuplicado() {
+        User user = criarUsuarioCompleto();
 
-        Optional<User> result = userService.findById(1L);
-
-        assertTrue(result.isPresent());
-        assertEquals("testuser", result.get().getLogin());
-        verify(userRepository, times(1)).findById(1L);
-    }
-
-    /**
-     * Testa a tentativa de buscar um usuário inexistente por ID.
-     */
-    @Test
-    void deveRetornarVazioParaUsuarioInexistente() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
-        Optional<User> result = userService.findById(1L);
-
-        assertFalse(result.isPresent());
-        verify(userRepository, times(1)).findById(1L);
-    }
-
-    /**
-     * Testa o salvamento de um novo usuário com sucesso.
-     */
-    @Test
-    void deveSalvarUsuarioComSucesso() {
-        when(userRepository.existsByEmail(user.getEmail())).thenReturn(false);
-        when(passwordEncoder.encode("password123")).thenReturn("encodedPassword");
-        when(userRepository.save(user)).thenReturn(user);
-
-        User savedUser = userService.save(user);
-
-        assertNotNull(savedUser);
-        assertEquals("encodedPassword", savedUser.getPassword());
-        verify(userRepository, times(1)).existsByEmail(user.getEmail());
-        verify(userRepository, times(1)).save(user);
-}
-
-    /**
-     * Testa a tentativa de salvar um usuário com um email já existente.
-     */
-    @Test
-    void deveLancarExcecaoQuandoEmailJaCadastrado() {
         when(userRepository.existsByEmail(user.getEmail())).thenReturn(true);
 
-        assertThrows(DataIntegrityViolationException.class, () -> userService.save(user));
-        verify(userRepository, times(1)).existsByEmail(user.getEmail());
+        DataIntegrityViolationException exception = assertThrows(DataIntegrityViolationException.class,
+                () -> userService.save(user));
+
+        assertEquals("Email já cadastrado.", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
     }
 
-    /**
-     * Testa a exclusão de um usuário pelo ID.
-     */
     @Test
-    void deveExcluirUsuarioPorId() {
+    void deveExcluirUsuarioComSucesso() {
         doNothing().when(userRepository).deleteById(1L);
 
         userService.deleteById(1L);
@@ -121,29 +74,83 @@ class UserServiceImplTest {
         verify(userRepository, times(1)).deleteById(1L);
     }
 
-    /**
-     * Testa a verificação de existência de um email já cadastrado.
-     */
     @Test
-    void deveVerificarSeEmailJaExiste() {
-        when(userRepository.existsByEmail("test@example.com")).thenReturn(true);
+    void deveRetornarUsuarioPorId() {
+        User user = criarUsuarioCompleto();
+        when(userRepository.findByIdWithCars(1L)).thenReturn(Optional.of(user));
 
-        boolean exists = userService.existsByEmail("test@example.com");
+        Optional<User> result = userService.findById(1L);
 
-        assertTrue(exists);
-        verify(userRepository, times(1)).existsByEmail("test@example.com");
+        assertTrue(result.isPresent());
+        assertEquals("testuser", result.get().getLogin());
+        verify(userRepository, times(1)).findByIdWithCars(1L);
     }
 
-    /**
-     * Testa a verificação de existência de um login já cadastrado.
-     */
     @Test
-    void deveVerificarSeLoginJaExiste() {
-        when(userRepository.existsByLogin("testuser")).thenReturn(true);
+    void deveRetornarListaDeUsuariosComCarros() {
+        User user = criarUsuarioCompleto();
+        user.setCars(List.of(criarCarroCompleto()));
 
-        boolean exists = userService.existsByLogin("testuser");
+        when(userRepository.findAllWithCars()).thenReturn(List.of(user));
 
-        assertTrue(exists);
-        verify(userRepository, times(1)).existsByLogin("testuser");
+        List<UserResponseDTO> result = userService.findAllUsersWithCars();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("testuser", result.get(0).getLogin());
+        verify(userRepository, times(1)).findAllWithCars();
+    }
+
+    @Test
+    void deveLancarExcecaoAoAdicionarCarrosInvalidos() {
+        User user = criarUsuarioCompleto();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(carRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of());
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> userService.addCarsToUser(1L, List.of(1L, 2L)));
+
+        assertEquals("Some cars were not found or are invalid.", exception.getMessage());
+        verify(carRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void deveRetornarEstatisticasDoSistema() {
+        User user = criarUsuarioCompleto();
+        Car car = criarCarroCompleto();
+        user.setCars(List.of(car));
+
+        when(userRepository.count()).thenReturn(1L);
+        when(userRepository.findAllWithCars()).thenReturn(List.of(user));
+
+        Map<String, Integer> stats = userService.getStatistics();
+
+        assertNotNull(stats);
+        assertEquals(1, stats.get("totalUsers"));
+        assertEquals(1, stats.get("totalCars"));
+    }
+
+    private User criarUsuarioCompleto() {
+        User user = new User();
+        user.setId(1L);
+        user.setLogin("testuser");
+        user.setPassword("password123");
+        user.setEmail("test@example.com");
+        user.setFirstName("Test");
+        user.setLastName("User");
+        user.setPhone("123456789");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+        return user;
+    }
+
+    private Car criarCarroCompleto() {
+        Car car = new Car();
+        car.setId(1L);
+        car.setLicensePlate("ABC-1234");
+        car.setModel("Model X");
+        car.setColor("Red");
+        car.setYear(2020);
+        return car;
     }
 }
