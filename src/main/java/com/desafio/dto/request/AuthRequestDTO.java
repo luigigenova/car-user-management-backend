@@ -1,4 +1,4 @@
-package com.desafio.dto;
+package com.desafio.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

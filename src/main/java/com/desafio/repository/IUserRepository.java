@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * Repositório de acesso a dados para a entidade User.
@@ -14,7 +15,7 @@ import org.springframework.data.jpa.repository.Query;
  */
 public interface IUserRepository extends JpaRepository<User, Long> {
 
-     /**
+    /**
      * Busca um usuário pelo login.
      *
      * @param login Login do usuário.
@@ -45,4 +46,7 @@ public interface IUserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.cars")
     List<User> findAllWithCars();
+
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.cars WHERE u.id = :id")
+    Optional<User> findByIdWithCars(@Param("id") Long id);
 }

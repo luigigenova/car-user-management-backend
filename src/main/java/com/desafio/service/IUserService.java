@@ -1,6 +1,7 @@
 package com.desafio.service;
 
-import com.desafio.dto.UserResponseDTO;
+import com.desafio.dto.response.CarResponseDTO;
+import com.desafio.dto.response.UserResponseDTO;
 import com.desafio.entity.User;
 import java.util.List;
 import java.util.Map;
@@ -11,13 +12,6 @@ import java.util.Optional;
  * Define operações para criação, consulta, atualização e exclusão de usuários.
  */
 public interface IUserService {
-
-    /**
-     * Lista todos os usuários.
-     * 
-     * @return uma lista de todos os usuários
-     */
-    List<User> findAll();
 
     /**
      * Busca um usuário pelo ID.
@@ -71,4 +65,16 @@ public interface IUserService {
     Map<String, Integer> getStatistics();
 
     User findByUsername(String username);
+
+    void removeCarFromUser(Long userId, Long carId);
+
+    List<UserResponseDTO> findAll(int page, int size, String sortBy);
+
+    long getTotalCount();
+
+    List<CarResponseDTO> getAvailableCars();
+
+    User update(Long id, User user);
+
+    void addCarsToUser(Long userId, List<Long> carIds);
 }

@@ -1,5 +1,7 @@
 package com.desafio.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -53,6 +55,7 @@ public class Car {
      * Usuário proprietário do carro.
      */
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = true) // Permite null
+    @JsonIgnore
     private User user;
 }

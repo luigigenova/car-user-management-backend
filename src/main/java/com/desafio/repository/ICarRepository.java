@@ -1,40 +1,60 @@
 package com.desafio.repository;
 
 import com.desafio.entity.Car;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
 /**
- * Interface que define as operações de acesso a dados para a entidade Car.
+ * Repository interface for accessing Car entity data.
+ * Provides methods for CRUD operations and custom queries.
  */
 @Repository
 public interface ICarRepository extends JpaRepository<Car, Long> {
 
     /**
-     * Busca todos os carros de um usuário específico.
+     * Retrieves all cars associated with a specific user.
      *
-     * @param userId ID do usuário.
-     * @return Lista de carros do usuário.
+     * @param userId User ID.
+     * @return List of cars associated with the user.
      */
     List<Car> findByUserId(Long userId);
 
     /**
-     * Verifica se existe um carro com a placa especificada.
+     * Checks if a car with the given license plate exists.
      *
-     * @param licensePlate Placa do carro.
-     * @return true se a placa já estiver cadastrada, caso contrário false.
+     * @param licensePlate License plate of the car.
+     * @return true if the license plate exists, false otherwise.
      */
     boolean existsByLicensePlate(String licensePlate);
 
     /**
-     * Verifica se existe um carro com a placa especificada, excluindo um ID.
+     * Checks if a car with the given license plate exists, excluding a specific car ID.
      *
-     * @param licensePlate Placa do carro.
-     * @param id ID do carro a ser excluído da verificação.
-     * @return true se a placa já estiver cadastrada em outro carro, caso contrário false.
+     * @param licensePlate License plate of the car.
+     * @param id           ID of the car to exclude.
+     * @return true if the license plate exists, false otherwise.
      */
     boolean existsByLicensePlateAndIdNot(String licensePlate, Long id);
-}
 
+    /**
+     * Checks if a car with a specific ID belongs to a specific user.
+     *
+     * @param id     Car ID.
+     * @param userId User ID.
+     * @return true if the car belongs to the user, false otherwise.
+     */
+    @Query("SELECT CASE WHEN COUNT(c) > 0 THEN true ELSE false END FROM Car c WHERE c.id = :id AND c.user.id = :userId")
+    boolean existsByIdAndUserId(Long id, Long userId);
+
+    /**
+     * Retrieves all cars not associated with any user.
+     *
+     * @return List of cars not associated with any user.
+     */
+    @Query("SELECT c FROM Car c WHERE c.user IS NULL")
+    List<Car> findAvailableCars();
+}

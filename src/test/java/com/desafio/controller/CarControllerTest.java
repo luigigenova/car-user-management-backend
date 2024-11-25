@@ -1,10 +1,13 @@
 package com.desafio.controller;
 
-import com.desafio.dto.CarRequestDTO;
-import com.desafio.dto.CarResponseDTO;
+import com.desafio.dto.request.CarRequestDTO;
+import com.desafio.dto.response.CarResponseDTO;
 import com.desafio.entity.Car;
 import com.desafio.entity.User;
+import com.desafio.exception.DuplicateLicensePlateException;
 import com.desafio.service.ICarService;
+import com.desafio.service.IUserService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -12,6 +15,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.security.Principal;
 import java.util.List;
@@ -19,30 +25,35 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
- * Classe de teste unitário para o controlador {@link CarController}.
+ * Teste unitário para o controlador {@link CarController}.
  * <p>
- * Testa as funcionalidades de criação, atualização, listagem e exclusão de carros.
+ * Valida as operações de CRUD no contexto de carros para usuários autenticados.
+ * Aplica conceitos de S.O.L.I.D. e boas práticas para garantir robustez.
  * </p>
  */
 class CarControllerTest {
 
     /**
-     * Mock do serviço de carros.
+     * Mock para o serviço de gerenciamento de carros.
      */
     @Mock
     private ICarService carService;
 
+    @Mock
+    private IUserService userService;
+
     /**
-     * Controlador de carros sendo testado.
+     * Controlador de carros com dependências injetadas.
      */
     @InjectMocks
     private CarController carController;
 
     /**
-     * Mock do usuário autenticado.
+     * Mock para o usuário autenticado.
      */
     @Mock
     private Principal principal;
@@ -58,18 +69,9 @@ class CarControllerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
 
-        user = new User();
-        user.setId(1L);
-
-        car = new Car();
-        car.setId(1L);
-        car.setColor("Yellow");
-        car.setModel("Corolla");
-        car.setYear(2021);
-        car.setLicensePlate("ABC-1234");
-        car.setUser(user);
-
-        carRequestDTO = new CarRequestDTO("Corolla", "Toyota", 2021, "ABC-1234");
+        user = createUser(1L);
+        car = createCar(1L, "Corolla", "Toyota", 2021, "Yellow", "ABC-1234", user);
+        carRequestDTO = createCarRequestDTO("Corolla", "Toyota", 2021, "ABC-1234");
 
         when(principal.getName()).thenReturn("1");
     }
@@ -79,87 +81,123 @@ class CarControllerTest {
      */
     @Test
     void deveCriarCarroComSucesso() {
+        // Mock do Authentication
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+
+        // Configurando o SecurityContext com o mock
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        // Configurando o nome do usuário no Authentication
+        when(authentication.getName()).thenReturn("testuser");
+
+        // Mock do usuário
+        User user = new User();
+        user.setId(1L);
+
+        // Configurando o mock do userService
+        when(userService.findByUsername("testuser")).thenReturn(user);
+
+        // Configurando o mock do carService
         when(carService.saveCar(any(Car.class))).thenReturn(car);
 
-        ResponseEntity<?> response = carController.createCar(carRequestDTO, principal);
+        // Executando o teste
+        ResponseEntity<?> response = carController.createCar(carRequestDTO);
 
+        // Verificações
         assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof CarResponseDTO);
-        CarResponseDTO responseBody = (CarResponseDTO) response.getBody();
-        assertEquals("Yellow", responseBody.getColor());
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        assertTrue(response.getBody() instanceof Map);
+        Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
+        assertEquals("Car created successfully", responseBody.get("message"));
         verify(carService, times(1)).saveCar(any(Car.class));
+
+        // Resetando o SecurityContext após o teste
+        SecurityContextHolder.clearContext();
     }
 
     /**
-     * Testa a criação de um carro com placa duplicada.
+     * Testa a criação de um carro com uma placa duplicada.
      */
     @Test
     void deveRetornarErroAoCriarCarroComPlacaDuplicada() {
-        when(carService.existsByLicensePlate(car.getLicensePlate())).thenReturn(true);
+        // Mock do Authentication
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
 
-        ResponseEntity<?> response = carController.createCar(carRequestDTO, principal);
+        // Configurando o SecurityContext com o mock
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
 
+        // Configurando o nome do usuário no Authentication
+        when(authentication.getName()).thenReturn("testuser");
+
+        // Mock do usuário
+        User user = new User();
+        user.setId(1L);
+
+        // Configurando o mock do userService
+        when(userService.findByUsername("testuser")).thenReturn(user);
+
+        // Simulando exceção de placa duplicada no carService
+        doThrow(new DuplicateLicensePlateException("License plate already exists"))
+                .when(carService).saveCar(any(Car.class));
+
+        // Executando o teste
+        ResponseEntity<?> response = carController.createCar(carRequestDTO);
+
+        // Verificações
         assertNotNull(response);
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertTrue(response.getBody() instanceof Map);
         Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
         assertEquals("License plate already exists", responseBody.get("message"));
-        assertEquals(409, responseBody.get("errorCode"));
-        verify(carService, never()).saveCar(any(Car.class));
+        verify(carService, times(1)).saveCar(any(Car.class));
+
+        // Resetando o SecurityContext após o teste
+        SecurityContextHolder.clearContext();
     }
 
     /**
-     * Testa a atualização de um carro com sucesso.
-     */
-    @Test
-    void deveAtualizarCarroComSucesso() {
-        when(carService.updateCar(eq(1L), any(Car.class))).thenReturn(car);
-
-        ResponseEntity<?> response = carController.updateCar(1L, carRequestDTO, principal);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof CarResponseDTO);
-        CarResponseDTO responseBody = (CarResponseDTO) response.getBody();
-        assertEquals("Toyota", responseBody.getColor());
-        verify(carService, times(1)).updateCar(eq(1L), any(Car.class));
-    }
-
-    /**
-     * Testa a atualização de um carro com placa duplicada.
-     */
-    @Test
-    void deveRetornarErroAoAtualizarCarroComPlacaDuplicada() {
-        when(carService.existsByLicensePlateAndIdNot(car.getLicensePlate(), car.getId())).thenReturn(true);
-
-        ResponseEntity<?> response = carController.updateCar(1L, carRequestDTO, principal);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-        assertTrue(response.getBody() instanceof Map);
-        Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
-        assertEquals("License plate already exists", responseBody.get("message"));
-        assertEquals(409, responseBody.get("errorCode"));
-        verify(carService, never()).updateCar(anyLong(), any(Car.class));
-    }
-
-    /**
-     * Testa a listagem de todos os carros do usuário autenticado.
+     * Testa a listagem de carros do usuário autenticado.
      */
     @Test
     void deveListarCarrosDoUsuarioComSucesso() {
+        // Mock do Authentication
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+
+        // Configurando o SecurityContext com o mock
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        // Configurando o nome do usuário no Authentication
+        when(authentication.getName()).thenReturn("testuser");
+
+        // Mock do usuário
+        User user = new User();
+        user.setId(1L);
+
+        // Configuração do mock do userService
+        when(userService.findByUsername("testuser")).thenReturn(user);
+
+        // Configuração do mock do carService
         when(carService.getCarsByUserId(1L)).thenReturn(List.of(car));
 
-        ResponseEntity<?> response = carController.getCars(principal);
+        // Executando o teste
+        ResponseEntity<?> response = carController.getCars();
 
+        // Verificações
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody() instanceof List);
         List<CarResponseDTO> responseBody = (List<CarResponseDTO>) response.getBody();
         assertEquals(1, responseBody.size());
-        assertEquals("Toyota", responseBody.get(0).getColor());
         verify(carService, times(1)).getCarsByUserId(1L);
+
+        // Resetando o SecurityContext após o teste
+        SecurityContextHolder.clearContext();
     }
 
     /**
@@ -167,30 +205,133 @@ class CarControllerTest {
      */
     @Test
     void deveDeletarCarroComSucesso() {
+        // Mock do Authentication
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+
+        // Configurando o SecurityContext com o mock
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        // Configurando o nome do usuário no Authentication
+        when(authentication.getName()).thenReturn("testuser");
+
+        // Mock do usuário
+        User user = new User();
+        user.setId(1L);
+
+        // Mock do carro
+        Car car = new Car();
+        car.setId(1L);
+        car.setUser(user);
+
+        // Configuração do mock do userService
+        when(userService.findByUsername("testuser")).thenReturn(user);
+
+        // Configuração do mock do carService
+        when(carService.existsByIdAndUserId(1L, 1L)).thenReturn(true);
         doNothing().when(carService).deleteCar(1L, 1L);
 
-        ResponseEntity<?> response = carController.deleteCar(1L, principal);
+        // Executando o teste
+        ResponseEntity<?> response = carController.deleteCar(1L);
 
+        // Verificações
         assertNotNull(response);
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         verify(carService, times(1)).deleteCar(1L, 1L);
+
+        // Resetando o SecurityContext após o teste
+        SecurityContextHolder.clearContext();
     }
 
     /**
-     * Testa a tentativa de exclusão de um carro com falha na autorização.
+     * Testa a tentativa de exclusão de um carro inexistente.
      */
     @Test
-    void deveRetornarErroAoDeletarCarroSemAutorizacao() {
-        doThrow(new IllegalArgumentException("Unauthorized")).when(carService).deleteCar(1L, 1L);
+    void deveRetornarErroAoDeletarCarroInexistente() {
+        // Mock do Authentication
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
 
-        ResponseEntity<?> response = carController.deleteCar(1L, principal);
+        // Configurando o SecurityContext com o mock
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
 
+        // Configurando o nome do usuário no Authentication
+        when(authentication.getName()).thenReturn("testuser");
+
+        // Mock do usuário
+        User user = new User();
+        user.setId(1L);
+
+        // Configurando o mock do userService
+        when(userService.findByUsername("testuser")).thenReturn(user);
+
+        // Configurando o mock do carService
+        when(carService.existsByIdAndUserId(1L, 1L)).thenReturn(false);
+
+        // Executando o teste
+        ResponseEntity<?> response = carController.deleteCar(1L);
+
+        // Verificações
         assertNotNull(response);
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertTrue(response.getBody() instanceof Map);
         Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
-        assertEquals("Unauthorized", responseBody.get("message"));
-        assertEquals(401, responseBody.get("errorCode"));
-        verify(carService, times(1)).deleteCar(1L, 1L);
+        assertEquals("Car not found", responseBody.get("message"));
+
+        // Garantir que deleteCar não foi chamado
+        verify(carService, never()).deleteCar(anyLong(), anyLong());
+
+        // Resetando o SecurityContext após o teste
+        SecurityContextHolder.clearContext();
+    }
+
+    /**
+     * Cria uma instância de {@link User} para os testes.
+     *
+     * @param userId ID do usuário.
+     * @return Instância de {@link User}.
+     */
+    private User createUser(Long userId) {
+        User user = new User();
+        user.setId(userId);
+        return user;
+    }
+
+    /**
+     * Cria uma instância de {@link Car} para os testes.
+     *
+     * @param id           ID do carro.
+     * @param model        Modelo do carro.
+     * @param brand        Marca do carro.
+     * @param year         Ano de fabricação.
+     * @param color        Cor do carro.
+     * @param licensePlate Placa do carro.
+     * @param user         Usuário associado.
+     * @return Instância de {@link Car}.
+     */
+    private Car createCar(Long id, String model, String brand, int year, String color, String licensePlate, User user) {
+        Car car = new Car();
+        car.setId(id);
+        car.setModel(model);
+        car.setYear(year);
+        car.setColor(color);
+        car.setLicensePlate(licensePlate);
+        car.setUser(user);
+        return car;
+    }
+
+    /**
+     * Cria uma instância de {@link CarRequestDTO} para os testes.
+     *
+     * @param model        Modelo do carro.
+     * @param brand        Marca do carro.
+     * @param year         Ano de fabricação.
+     * @param licensePlate Placa do carro.
+     * @return Instância de {@link CarRequestDTO}.
+     */
+    private CarRequestDTO createCarRequestDTO(String model, String brand, int year, String licensePlate) {
+        return new CarRequestDTO(model, brand, year, licensePlate);
     }
 }

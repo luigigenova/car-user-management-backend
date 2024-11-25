@@ -1,4 +1,4 @@
-package com.desafio.dto;
+package com.desafio.dto.response;
 
 import java.time.LocalDate;
 import java.util.List;

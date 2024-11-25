@@ -5,14 +5,13 @@ import com.desafio.repository.ICarRepository;
 import com.desafio.service.ICarService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Implementação dos serviços relacionados à entidade Car.
- * Segue o princípio de responsabilidade única (SRP) do SOLID,
- * encapsulando a lógica de negócios de manipulação de carros.
+ * Implementation of services related to the Car entity.
+ * Adheres to the Single Responsibility Principle (SRP) by encapsulating car
+ * manipulation business logic.
  */
 @Service
 public class CarServiceImpl implements ICarService {
@@ -20,9 +19,9 @@ public class CarServiceImpl implements ICarService {
     private final ICarRepository carRepository;
 
     /**
-     * Construtor para injeção de dependência do repositório de carros.
+     * Constructor for dependency injection of the car repository.
      *
-     * @param carRepository Repositório de carros.
+     * @param carRepository Car repository.
      */
     @Autowired
     public CarServiceImpl(ICarRepository carRepository) {
@@ -32,7 +31,7 @@ public class CarServiceImpl implements ICarService {
     @Override
     public Car saveCar(Car car) {
         if (carRepository.existsByLicensePlate(car.getLicensePlate())) {
-            throw new IllegalArgumentException("Já existe um carro com esta placa.");
+            throw new IllegalArgumentException("A car with this license plate already exists.");
         }
         return carRepository.save(car);
     }
@@ -41,7 +40,7 @@ public class CarServiceImpl implements ICarService {
     public Car updateCar(Long id, Car car) {
         Optional<Car> existingCar = carRepository.findById(id);
         if (existingCar.isEmpty()) {
-            throw new IllegalArgumentException("Carro não encontrado para atualização.");
+            throw new IllegalArgumentException("Car not found for update.");
         }
         car.setId(id);
         return carRepository.save(car);
@@ -56,7 +55,7 @@ public class CarServiceImpl implements ICarService {
     public void deleteCar(Long id, Long userId) {
         Optional<Car> car = carRepository.findById(id);
         if (car.isEmpty() || !car.get().getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("Carro não encontrado ou não pertence ao usuário.");
+            throw new IllegalArgumentException("Car not found or does not belong to the user.");
         }
         carRepository.deleteById(id);
     }
@@ -74,5 +73,15 @@ public class CarServiceImpl implements ICarService {
     @Override
     public Optional<Car> findById(Long id) {
         return carRepository.findById(id);
+    }
+
+    @Override
+    public List<Car> findAvailableCars() {
+        return carRepository.findAvailableCars();
+    }
+
+    @Override
+    public boolean existsByIdAndUserId(Long id, Long userId) {
+        return carRepository.existsByIdAndUserId(id, userId);
     }
 }

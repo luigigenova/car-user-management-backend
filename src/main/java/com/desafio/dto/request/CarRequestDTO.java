@@ -1,4 +1,4 @@
-package com.desafio.dto;
+package com.desafio.dto.request;
 
 import com.desafio.entity.Car;
 import jakarta.validation.constraints.NotBlank;

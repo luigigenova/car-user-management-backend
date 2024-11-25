@@ -1,4 +1,4 @@
-package com.desafio.dto;
+package com.desafio.dto.response;
 
 import com.desafio.entity.Car;
 import com.fasterxml.jackson.annotation.JsonCreator;

@@ -54,20 +54,6 @@ class UserServiceImplTest {
     }
 
     /**
-     * Testa a listagem de todos os usuários.
-     */
-    @Test
-    void deveRetornarTodosUsuarios() {
-        when(userRepository.findAll()).thenReturn(List.of(user));
-
-        List<User> users = userService.findAll();
-
-        assertNotNull(users);
-        assertEquals(1, users.size());
-        verify(userRepository, times(1)).findAll();
-    }
-
-    /**
      * Testa a busca de um usuário por ID.
      */
     @Test
@@ -109,7 +95,7 @@ class UserServiceImplTest {
         assertEquals("encodedPassword", savedUser.getPassword());
         verify(userRepository, times(1)).existsByEmail(user.getEmail());
         verify(userRepository, times(1)).save(user);
-    }
+}
 
     /**
      * Testa a tentativa de salvar um usuário com um email já existente.

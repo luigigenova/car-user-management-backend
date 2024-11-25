@@ -9,7 +9,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,8 +16,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Classe de teste para a implementação dos serviços relacionados à entidade Car.
- * Garante a cobertura de todas as funcionalidades da classe {@link CarServiceImpl}.
+ * Classe de teste para a implementação dos serviços relacionados à entidade {@link Car}.
+ * <p>
+ * Garante a cobertura de todas as funcionalidades da classe {@link CarServiceImpl},
+ * aplicando boas práticas e garantindo robustez.
+ * </p>
  */
 class CarServiceImplTest {
 
@@ -47,11 +49,7 @@ class CarServiceImplTest {
      */
     @Test
     void deveSalvarCarroComSucesso() {
-        Car car = new Car();
-        car.setId(1L);
-        car.setLicensePlate("ABC-1234");
-        car.setModel("Modelo X");
-        car.setColor("Yellow");
+        Car car = createCar(1L, "ABC-1234", "Modelo X", "Yellow", 2021);
 
         when(carRepository.existsByLicensePlate(car.getLicensePlate())).thenReturn(false);
         when(carRepository.save(car)).thenReturn(car);
@@ -68,14 +66,13 @@ class CarServiceImplTest {
      */
     @Test
     void deveLancarExcecaoAoSalvarCarroComPlacaJaExistente() {
-        Car car = new Car();
-        car.setLicensePlate("ABC-1234");
+        Car car = createCar(null, "ABC-1234", "Modelo Y", "Blue", 2020);
 
         when(carRepository.existsByLicensePlate(car.getLicensePlate())).thenReturn(true);
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> carService.saveCar(car));
 
-        assertEquals("Já existe um carro com esta placa.", exception.getMessage());
+        assertEquals("A car with this license plate already exists.", exception.getMessage());
         verify(carRepository, never()).save(car);
     }
 
@@ -84,13 +81,8 @@ class CarServiceImplTest {
      */
     @Test
     void deveAtualizarCarroComSucesso() {
-        Car existingCar = new Car();
-        existingCar.setId(1L);
-
-        Car updatedCar = new Car();
-        updatedCar.setLicensePlate("XYZ-9876");
-        updatedCar.setModel("Modelo Atualizado");
-        updatedCar.setColor("Yellow");
+        Car existingCar = createCar(1L, "XYZ-9876", "Modelo Atual", "Red", 2019);
+        Car updatedCar = createCar(null, "XYZ-9876", "Modelo Atualizado", "Yellow", 2021);
 
         when(carRepository.findById(1L)).thenReturn(Optional.of(existingCar));
         when(carRepository.save(updatedCar)).thenReturn(updatedCar);
@@ -99,6 +91,7 @@ class CarServiceImplTest {
 
         assertNotNull(result);
         assertEquals("XYZ-9876", result.getLicensePlate());
+        assertEquals("Modelo Atualizado", result.getModel());
         verify(carRepository, times(1)).save(updatedCar);
     }
 
@@ -107,14 +100,13 @@ class CarServiceImplTest {
      */
     @Test
     void deveLancarExcecaoAoAtualizarCarroInexistente() {
-        Car updatedCar = new Car();
-        updatedCar.setLicensePlate("XYZ-9876");
+        Car updatedCar = createCar(null, "XYZ-9876", "Modelo Atualizado", "Yellow", 2021);
 
         when(carRepository.findById(1L)).thenReturn(Optional.empty());
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> carService.updateCar(1L, updatedCar));
 
-        assertEquals("Carro não encontrado para atualização.", exception.getMessage());
+        assertEquals("Car not found for update.", exception.getMessage());
         verify(carRepository, never()).save(updatedCar);
     }
 
@@ -123,11 +115,7 @@ class CarServiceImplTest {
      */
     @Test
     void deveBuscarCarrosPorUserId() {
-        List<Car> cars = new ArrayList<>();
-        Car car1 = new Car();
-        car1.setId(1L);
-        car1.setLicensePlate("ABC-1234");
-        cars.add(car1);
+        List<Car> cars = List.of(createCar(1L, "ABC-1234", "Modelo Z", "Green", 2022));
 
         when(carRepository.findByUserId(1L)).thenReturn(cars);
 
@@ -135,6 +123,7 @@ class CarServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
+        assertEquals("Modelo Z", result.get(0).getModel());
         verify(carRepository, times(1)).findByUserId(1L);
     }
 
@@ -143,12 +132,8 @@ class CarServiceImplTest {
      */
     @Test
     void deveExcluirCarroComSucesso() {
-        User user = new User();
-        user.setId(1L);
-
-        Car car = new Car();
-        car.setId(1L);
-        car.setUser(user);
+        User user = createUser(1L);
+        Car car = createCar(1L, "XYZ-9876", "Modelo W", "Black", 2023, user);
 
         when(carRepository.findById(1L)).thenReturn(Optional.of(car));
 
@@ -162,18 +147,14 @@ class CarServiceImplTest {
      */
     @Test
     void deveLancarExcecaoAoExcluirCarroDeOutroUsuario() {
-        User user = new User();
-        user.setId(2L);
-
-        Car car = new Car();
-        car.setId(1L);
-        car.setUser(user);
+        User user = createUser(2L);
+        Car car = createCar(1L, "XYZ-9876", "Modelo W", "Black", 2023, user);
 
         when(carRepository.findById(1L)).thenReturn(Optional.of(car));
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> carService.deleteCar(1L, 1L));
 
-        assertEquals("Carro não encontrado ou não pertence ao usuário.", exception.getMessage());
+        assertEquals("Car not found or does not belong to the user.", exception.getMessage());
         verify(carRepository, never()).deleteById(1L);
     }
 
@@ -186,7 +167,72 @@ class CarServiceImplTest {
 
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> carService.deleteCar(1L, 1L));
 
-        assertEquals("Carro não encontrado ou não pertence ao usuário.", exception.getMessage());
+        assertEquals("Car not found or does not belong to the user.", exception.getMessage());
         verify(carRepository, never()).deleteById(1L);
+    }
+
+    /**
+     * Testa a funcionalidade de buscar carros disponíveis.
+     */
+    @Test
+    void deveBuscarCarrosDisponiveis() {
+        List<Car> availableCars = List.of(createCar(1L, "FREE-123", "Modelo Livre", "White", 2020));
+
+        when(carRepository.findAvailableCars()).thenReturn(availableCars);
+
+        List<Car> result = carService.findAvailableCars();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("FREE-123", result.get(0).getLicensePlate());
+        verify(carRepository, times(1)).findAvailableCars();
+    }
+
+    /**
+     * Cria uma instância de {@link Car}.
+     *
+     * @param id           ID do carro.
+     * @param licensePlate Placa do carro.
+     * @param model        Modelo do carro.
+     * @param color        Cor do carro.
+     * @param year         Ano de fabricação.
+     * @return Instância de {@link Car}.
+     */
+    private Car createCar(Long id, String licensePlate, String model, String color, int year) {
+        return createCar(id, licensePlate, model, color, year, null);
+    }
+
+    /**
+     * Cria uma instância de {@link Car} com um usuário associado.
+     *
+     * @param id           ID do carro.
+     * @param licensePlate Placa do carro.
+     * @param model        Modelo do carro.
+     * @param color        Cor do carro.
+     * @param year         Ano de fabricação.
+     * @param user         Usuário associado.
+     * @return Instância de {@link Car}.
+     */
+    private Car createCar(Long id, String licensePlate, String model, String color, int year, User user) {
+        Car car = new Car();
+        car.setId(id);
+        car.setLicensePlate(licensePlate);
+        car.setModel(model);
+        car.setColor(color);
+        car.setYear(year);
+        car.setUser(user);
+        return car;
+    }
+
+    /**
+     * Cria uma instância de {@link User}.
+     *
+     * @param id ID do usuário.
+     * @return Instância de {@link User}.
+     */
+    private User createUser(Long id) {
+        User user = new User();
+        user.setId(id);
+        return user;
     }
 }

@@ -1,4 +1,4 @@
-package com.desafio.dto;
+package com.desafio.dto.request;
 
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.List;
+
+import com.desafio.dto.response.CarResponseDTO;
 
 /**
  * Data Transfer Object (DTO) para encapsular as informações de um usuário.
@@ -123,4 +125,5 @@ public class UserRequestDTO {
         this.password = password;
         this.phone = phone;
     }
+
 }

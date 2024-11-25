@@ -17,7 +17,8 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import com.desafio.dto.UserRequestDTO;
+import com.desafio.dto.request.UserRequestDTO;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * Entidade que representa um usuário no sistema.
@@ -66,7 +67,8 @@ public class User {
      * <p>
      * A associação é gerenciada com operações em cascata e remoção automática de órfãos.
      */
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @JsonIgnore
     private List<Car> cars;
 
     /**
@@ -100,4 +102,5 @@ public class User {
         dto.setPhone(this.phone);
         return dto;
     }
+
 }

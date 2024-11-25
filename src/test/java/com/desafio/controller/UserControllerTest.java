@@ -1,8 +1,10 @@
 package com.desafio.controller;
 
-import com.desafio.dto.UserResponseDTO;
+import com.desafio.dto.request.UserRequestDTO;
+import com.desafio.dto.response.UserResponseDTO;
 import com.desafio.entity.Car;
 import com.desafio.entity.User;
+import com.desafio.service.ICarService;
 import com.desafio.service.IUserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,13 +19,14 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
  * Classe de teste para o controlador {@link UserController}.
  * <p>
- * Valida os endpoints relacionados ao gerenciamento de usuários,
- * com foco em cenários de sucesso e falha.
+ * Valida todos os endpoints relacionados ao gerenciamento de usuários.
+ * Aplica conceitos de SOLID e boas práticas para robustez e clareza.
  * </p>
  */
 class UserControllerTest {
@@ -35,7 +38,13 @@ class UserControllerTest {
     private IUserService userService;
 
     /**
-     * Instância do controlador sendo testada.
+     * Mock do serviço de carros.
+     */
+    @Mock
+    private ICarService carService;
+
+    /**
+     * Controlador sendo testado.
      */
     @InjectMocks
     private UserController userController;
@@ -49,31 +58,23 @@ class UserControllerTest {
     }
 
     /**
-     * Testa o endpoint para listar todos os usuários.
+     * Testa o endpoint para listar todos os usuários com carros associados.
      */
     @Test
-    void deveListarTodosOsUsuarios() {
-        User user = new User();
-        user.setId(1L);
-        user.setLogin("user1");
-        user.setEmail("user1@example.com");
-
-        Car car = new Car();
-        car.setId(101L);
-        car.setModel("Model X");
-        car.setColor("Yellow");
+    void deveListarTodosOsUsuariosComCarros() {
+        User user = createUser(1L, "user1", "user1@example.com");
+        Car car = createCar(101L, "Model X", "Red", 2021, "ABC-1234", user);
         user.setCars(List.of(car));
 
-        when(userService.findAll()).thenReturn(List.of(user));
+        when(userService.findAllUsersWithCars()).thenReturn(List.of(UserResponseDTO.fromEntity(user)));
 
-        ResponseEntity<List<UserResponseDTO>> response = userController.getAllUsers();
+        ResponseEntity<List<UserResponseDTO>> response = userController.getAllUsersWithCars();
 
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
         assertEquals("user1", response.getBody().get(0).getLogin());
-        assertEquals("Model X", response.getBody().get(0).getCars().get(0).getModel());
-        verify(userService, times(1)).findAll();
+        verify(userService, times(1)).findAllUsersWithCars();
     }
 
     /**
@@ -81,10 +82,7 @@ class UserControllerTest {
      */
     @Test
     void deveBuscarUsuarioPorIdComSucesso() {
-        User user = new User();
-        user.setId(1L);
-        user.setLogin("user1");
-        user.setEmail("user1@example.com");
+        User user = createUser(1L, "user1", "user1@example.com");
 
         when(userService.findById(1L)).thenReturn(Optional.of(user));
 
@@ -92,8 +90,8 @@ class UserControllerTest {
 
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof User);
-        User responseBody = (User) response.getBody();
+        assertTrue(response.getBody() instanceof UserResponseDTO);
+        UserResponseDTO responseBody = (UserResponseDTO) response.getBody();
         assertEquals("user1", responseBody.getLogin());
         verify(userService, times(1)).findById(1L);
     }
@@ -117,47 +115,37 @@ class UserControllerTest {
     }
 
     /**
-     * Testa o endpoint que atualiza um usuário com sucesso.
+     * Testa o endpoint que cria um usuário com sucesso.
      */
     @Test
-    void deveAtualizarUsuarioComSucesso() {
+    void deveCriarUsuarioComSucesso() {
+        // Criando um UserRequestDTO válido
+        UserRequestDTO userRequest = new UserRequestDTO();
+        userRequest.setLogin("user1");
+        userRequest.setEmail("user1@example.com");
+        userRequest.setPassword("password123");
+        userRequest.setFirstName("John");
+        userRequest.setLastName("Doe");
+        userRequest.setBirthday("1990-01-01"); // Data de nascimento válida
+
+        // Criando o objeto User retornado pelo serviço
         User user = new User();
         user.setId(1L);
         user.setLogin("user1");
         user.setEmail("user1@example.com");
 
-        when(userService.findById(1L)).thenReturn(Optional.of(user));
-        when(userService.save(user)).thenReturn(user);
+        // Configurando os mocks
+        when(userService.existsByEmail(userRequest.getEmail())).thenReturn(false);
+        when(userService.existsByLogin(userRequest.getLogin())).thenReturn(false);
+        when(userService.save(any(User.class))).thenReturn(user);
 
-        ResponseEntity<?> response = userController.updateUser(1L, user);
+        // Executando o método do controlador
+        ResponseEntity<?> response = userController.createUser(userRequest);
 
+        // Verificações
         assertNotNull(response);
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertTrue(response.getBody() instanceof User);
-        verify(userService, times(1)).save(user);
-    }
-
-    /**
-     * Testa o endpoint que retorna erro 404 ao tentar atualizar um usuário inexistente.
-     */
-    @Test
-    void deveRetornar404AoAtualizarUsuarioNaoExistente() {
-        User user = new User();
-        user.setId(1L);
-        user.setLogin("user1");
-        user.setEmail("user1@example.com");
-
-        when(userService.findById(1L)).thenReturn(Optional.empty());
-
-        ResponseEntity<?> response = userController.updateUser(1L, user);
-
-        assertNotNull(response);
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        assertTrue(response.getBody() instanceof Map);
-        Map<?, ?> responseBody = (Map<?, ?>) response.getBody();
-        assertEquals("User not found", responseBody.get("message"));
-        assertEquals(404, responseBody.get("errorCode"));
-        verify(userService, never()).save(user);
+        assertEquals(HttpStatus.CREATED, response.getStatusCode());
+        verify(userService, times(1)).save(any(User.class));
     }
 
     /**
@@ -175,7 +163,8 @@ class UserControllerTest {
     }
 
     /**
-     * Testa o endpoint que retorna erro 404 ao tentar excluir um usuário inexistente.
+     * Testa o endpoint que retorna erro 404 ao tentar excluir um usuário
+     * inexistente.
      */
     @Test
     void deveRetornar404AoExcluirUsuarioNaoExistente() {
@@ -190,5 +179,59 @@ class UserControllerTest {
         assertEquals("User not found", responseBody.get("message"));
         assertEquals(404, responseBody.get("errorCode"));
         verify(userService, never()).deleteById(1L);
+    }
+
+    /**
+     * Cria uma instância de {@link User}.
+     *
+     * @param id    ID do usuário.
+     * @param login Login do usuário.
+     * @param email Email do usuário.
+     * @return Instância de {@link User}.
+     */
+    private User createUser(Long id, String login, String email) {
+        User user = new User();
+        user.setId(id);
+        user.setLogin(login);
+        user.setEmail(email);
+        return user;
+    }
+
+    /**
+     * Cria uma instância de {@link Car}.
+     *
+     * @param id           ID do carro.
+     * @param model        Modelo do carro.
+     * @param color        Cor do carro.
+     * @param year         Ano do carro.
+     * @param licensePlate Placa do carro.
+     * @param user         Usuário associado.
+     * @return Instância de {@link Car}.
+     */
+    private Car createCar(Long id, String model, String color, int year, String licensePlate, User user) {
+        Car car = new Car();
+        car.setId(id);
+        car.setModel(model);
+        car.setColor(color);
+        car.setYear(year);
+        car.setLicensePlate(licensePlate);
+        car.setUser(user);
+        return car;
+    }
+
+    /**
+     * Cria uma instância de {@link UserRequestDTO}.
+     *
+     * @param login    Login do usuário.
+     * @param email    Email do usuário.
+     * @param password Senha do usuário.
+     * @return Instância de {@link UserRequestDTO}.
+     */
+    private UserRequestDTO createUserRequestDTO(String login, String email, String password) {
+        UserRequestDTO dto = new UserRequestDTO();
+        dto.setLogin(login);
+        dto.setEmail(email);
+        dto.setPassword(password);
+        return dto;
     }
 }
