@@ -54,8 +54,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Permite OPTIONS globalmente
                         .requestMatchers(
-                                "/api/signin",
-                                "/api/signup",
+                                "/api/users/signin",
+                                "/api/users/signup",
                                 "/api/users",
                                 "/api/users/available-cars",
                                 "/api/users/{userId}/add-cars",

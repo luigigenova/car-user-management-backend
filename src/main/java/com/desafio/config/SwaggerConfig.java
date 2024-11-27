@@ -11,18 +11,13 @@ import org.springdoc.core.models.GroupedOpenApi;
 @Configuration
 public class SwaggerConfig {
 
-    /**
-     * Cria o bean GroupedOpenApi para configuração do Swagger.
-     * Define quais pacotes e caminhos devem ser documentados pela interface Swagger.
-     *
-     * @return um objeto GroupedOpenApi configurado para o Swagger
-     */
     @Bean
     public GroupedOpenApi api() {
         return GroupedOpenApi.builder()
                 .group("com.desafio")
                 .packagesToScan("com.desafio.controller")
-                .pathsToMatch("/**")
+                .pathsToMatch("/api/**")
                 .build();
     }
 }
+

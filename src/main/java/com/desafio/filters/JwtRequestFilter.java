@@ -31,8 +31,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
      * Lista de rotas públicas que não exigem autenticação.
      */
     private static final List<String> PUBLIC_ROUTES = List.of(
-            "/api/signin",
-            "/api/signup",
+            "/api/users/signin",
+            "/api/users/signup",
             "/api/users",
             "/api/users/available-cars",
             "/api/users/{userId}/add-cars",
@@ -52,7 +52,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         boolean isPublicRoute = PUBLIC_ROUTES.stream().anyMatch(path::equals);
         boolean isOptionsMethod = "OPTIONS".equalsIgnoreCase(request.getMethod());
-        return isPublicRoute || isOptionsMethod;    
+        return isPublicRoute || isOptionsMethod;
     }
 
     @Override
@@ -75,11 +75,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     } else {
-                        System.err.println("Token inválido: " + token);
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Invalid JWT token");
+                        return;
                     }
                 }
             } catch (Exception e) {
-                System.err.println("Erro ao processar o token: " + e.getMessage());
+                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Token validation failed");
+                return;
             }
         }
 
